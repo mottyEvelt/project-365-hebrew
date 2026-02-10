@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     
     <application
-        android:label="365 Hebrew"
+        android:label="365. Hebrew"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
