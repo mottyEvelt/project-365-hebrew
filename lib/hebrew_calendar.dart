@@ -27,8 +27,8 @@ class HebrewCalendar {
   static Future<HebrewCalendar> fromGregorianAsync(
       int gYear, int gMonth, int gDay) async {
     try {
-      final url =
-          'https://www.hebcal.com/api/hdate?greg=$gYear/${gMonth.toString().padLeft(2, '0')}/${gDay.toString().padLeft(2, '0')}';
+      final isoDate = '${gYear.toString().padLeft(4, '0')}-${gMonth.toString().padLeft(2, '0')}-${gDay.toString().padLeft(2, '0')}';
+      final url = 'https://www.hebcal.com/api/hdate?cfg=json&greg=$isoDate';
       final response = await http.get(Uri.parse(url)).timeout(
         const Duration(seconds: 5),
         onTimeout: () => throw Exception('Hebcal API timeout'),
@@ -36,9 +36,14 @@ class HebrewCalendar {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
-        final hYear = json['h']['y'] as int;
-        final hMonth = json['h']['m'] as int;
-        final hDay = json['h']['d'] as int;
+        final h = json['h'];
+        if (h == null) throw Exception('Invalid Hebcal response');
+        dynamic dy = h['d'];
+        dynamic dm = h['m'];
+        dynamic yy = h['y'];
+        final hDay = dy is int ? dy : int.parse(dy.toString());
+        final hMonth = dm is int ? dm : int.parse(dm.toString());
+        final hYear = yy is int ? yy : int.parse(yy.toString());
 
         return HebrewCalendar(hYear, hMonth, hDay);
       } else {
@@ -52,16 +57,27 @@ class HebrewCalendar {
 
   /// Fallback local calculation if API fails
   static HebrewCalendar _fallbackFromGregorian(int gYear, int gMonth, int gDay) {
-    // Simple fallback - just return approximate date
-    // This won't be perfect but better than nothing
-    int hYear = gYear - 3760;
-    int hMonth = gMonth;
-    int hDay = gDay;
-
-    // Adjust for Hebrew calendar starting in fall
-    if (gMonth < 9) {
-      hYear--;
-    }
+    // A safer fallback: use rough year conversion and clamp month/day
+    int hYear = gYear + 3760;
+    if (gMonth < 9) hYear -= 1;
+    // map Gregorian month to approximate Hebrew month when API unavailable
+    // This mapping is approximate; prefer using the API when possible.
+    final approxMonthMap = {
+      1: 10, // Jan -> Tevet
+      2: 11, // Feb -> Shevat
+      3: 12, // Mar -> Adar
+      4: 1, // Apr -> Nisan
+      5: 2,
+      6: 3,
+      7: 4,
+      8: 5,
+      9: 6,
+      10: 7,
+      11: 8,
+      12: 9,
+    };
+    int hMonth = approxMonthMap[gMonth] ?? 1;
+    int hDay = gDay.clamp(1, daysInMonth(hYear, hMonth));
 
     return HebrewCalendar(hYear, hMonth, hDay);
   }
