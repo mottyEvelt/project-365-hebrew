@@ -8,45 +8,62 @@ class HebrewCalendar {
 
   /// Convert Gregorian date to Hebrew date
   factory HebrewCalendar.fromGregorian(int gYear, int gMonth, int gDay) {
-    // Calculate Julian Day Number from Gregorian date
+    // Calculate Julian Day Number
     int a = (14 - gMonth) ~/ 12;
     int y = gYear + 4800 - a;
     int m = gMonth + 12 * a - 3;
     int jdn = gDay + (153 * m + 2) ~/ 5 + 365 * y + y ~/ 4 - y ~/ 100 + y ~/ 400 - 32045;
 
-    // Convert JDN to Hebrew date using standard formula
-    // Based on Meeus algorithm for Hebrew calendar
-    int c = (jdn * 98496 + 8171949) ~/ 35670624;
-    int s = jdn - ((c * 35670624 - 8171949) ~/ 98496);
-    int a2 = ((s * 98496 + 18092) ~/ 655381);
-    int b = ((((s * 98496 + 18092) % 655381) * 19) + 18092) ~/ 655381;
-    
-    int hYear = c * 100 + a2 * 19 + b + 3744;
-    
-    // Adjust year if needed
-    int nisan1Jdn = ((hYear * 35670624 - 8171949) ~/ 98496) + 1;
-    if (jdn < nisan1Jdn) {
-      hYear = hYear - 1;
-      nisan1Jdn = ((hYear * 35670624 - 8171949) ~/ 98496) + 1;
+    // Find Hebrew year by binary search
+    int hYear = 5780; // Start around current year
+    while (true) {
+      int startJdn = hebrewYearStartJdn(hYear);
+      int endJdn = hebrewYearStartJdn(hYear + 1);
+      if (jdn >= startJdn && jdn < endJdn) {
+        break;
+      } else if (jdn < startJdn) {
+        hYear--;
+      } else {
+        hYear++;
+      }
     }
-    
+
     // Find month and day
-    int hMonth = 1;
-    int dayCount = 0;
-    
-    // Start from Nisan (month 1)
-    for (int m = 1; m <= 13; m++) {
+    int startOfYear = hebrewYearStartJdn(hYear);
+    int dayOfYear = jdn - startOfYear;
+    int hMonth = 7; // Start from Tishrei
+    int daysInCurrentMonth = 0;
+
+    for (int m = 7; m <= 13; m++) {
       int daysInM = daysInMonth(hYear, m);
-      if (jdn <= nisan1Jdn + dayCount + daysInM - 1) {
+      if (dayOfYear < daysInCurrentMonth + daysInM) {
         hMonth = m;
         break;
       }
-      dayCount += daysInM;
+      daysInCurrentMonth += daysInM;
     }
-    
-    int hDay = jdn - nisan1Jdn - dayCount + 1;
-    
+
+    for (int m = 1; m <= 6; m++) {
+      int daysInM = daysInMonth(hYear, m);
+      if (dayOfYear < daysInCurrentMonth + daysInM) {
+        hMonth = m;
+        break;
+      }
+      daysInCurrentMonth += daysInM;
+    }
+
+    int hDay = dayOfYear - daysInCurrentMonth + 1;
+
     return HebrewCalendar(hYear, hMonth, hDay);
+  }
+
+  // Helper: Calculate JDN for start of Hebrew year
+  static int hebrewYearStartJdn(int hYear) {
+    // Simplified calculation of Tishrei 1 (start of Hebrew year)
+    // Based on the 19-year Metonic cycle and known epoch
+    int months = hYear * 12 + (isLeapYear(hYear) ? 7 : 0);
+    int days = (months * 765433) ~/ 25920;
+    return 347997 + days;
   }
 
   /// Get current date in Hebrew calendar

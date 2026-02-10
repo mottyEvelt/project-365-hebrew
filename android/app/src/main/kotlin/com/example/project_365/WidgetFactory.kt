@@ -94,39 +94,55 @@ class WidgetFactory(
             var y = year + 4800 - a
             var m = month + 12 * a - 3
             val jdn = day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045
-            
-            // Convert JDN to Hebrew date
-            val c = (jdn * 98496 + 8171949) / 35670624
-            val s = jdn - ((c * 35670624 - 8171949) / 98496)
-            val a2 = ((s * 98496 + 18092) / 655381)
-            
-            var hYear = c * 100 + a2 * 19 + 3744
-            val bDiv = ((s * 98496 + 18092) % 655381 * 19 + 18092) / 655381
-            hYear += bDiv
-            
-            // Adjust year if needed
-            var nisan1Jdn = ((hYear * 35670624 - 8171949) / 98496) + 1
-            if (jdn < nisan1Jdn) {
-                hYear = hYear - 1
-                nisan1Jdn = ((hYear * 35670624 - 8171949) / 98496) + 1
+
+            // Find Hebrew year by iteration
+            var hYear = 5780
+            while (true) {
+                val startJdn = hebrewYearStartJdn(hYear)
+                val endJdn = hebrewYearStartJdn(hYear + 1)
+                when {
+                    jdn >= startJdn && jdn < endJdn -> break
+                    jdn < startJdn -> hYear--
+                    else -> hYear++
+                }
             }
-            
+
             // Find month and day
-            var hMonth = 1
-            var dayCount = 0
-            
-            for (m in 1..13) {
+            val startOfYear = hebrewYearStartJdn(hYear)
+            val dayOfYear = jdn - startOfYear
+            var hMonth = 7
+            var daysInCurrentMonth = 0
+
+            // Check Tishrei through Elul
+            for (m in 7..13) {
                 val daysInM = getDaysInHebrewMonth(hYear, m)
-                if (jdn <= nisan1Jdn + dayCount + daysInM - 1) {
+                if (dayOfYear < daysInCurrentMonth + daysInM) {
                     hMonth = m
                     break
                 }
-                dayCount += daysInM
+                daysInCurrentMonth += daysInM
             }
-            
-            val hDay = jdn - nisan1Jdn - dayCount + 1
-            
+
+            // Check Nisan through Adar
+            for (m in 1..6) {
+                val daysInM = getDaysInHebrewMonth(hYear, m)
+                if (dayOfYear < daysInCurrentMonth + daysInM) {
+                    hMonth = m
+                    break
+                }
+                daysInCurrentMonth += daysInM
+            }
+
+            val hDay = dayOfYear - daysInCurrentMonth + 1
+
             return intArrayOf(hYear, hMonth, hDay)
+        }
+
+        private fun hebrewYearStartJdn(hYear: Int): Int {
+            // Calculate JDN for Tishrei 1 of Hebrew year
+            val months = hYear * 12 + (if (isHebrewLeapYear(hYear)) 7 else 0)
+            val days = (months * 765433) / 25920
+            return 347997 + days
         }
         
         private fun getHebrewYearLength(year: Int): Int {
