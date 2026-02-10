@@ -1,4 +1,4 @@
-package com.example.project_365
+package com.example.project_365_hebrew
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
