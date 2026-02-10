@@ -8,32 +8,43 @@ class HebrewCalendar {
 
   /// Convert Gregorian date to Hebrew date
   factory HebrewCalendar.fromGregorian(int gYear, int gMonth, int gDay) {
-    // Using astronomical calculation method
-    // This is a simplified version - accurate enough for most purposes
+    // Calculate Julian Day Number from Gregorian date
+    int a = (14 - gMonth) ~/ 12;
+    int y = gYear + 4800 - a;
+    int m = gMonth + 12 * a - 3;
+    int jdn = gDay + (153 * m + 2) ~/ 5 + 365 * y + y ~/ 4 - y ~/ 100 + y ~/ 400 - 32045;
+
+    // Convert JDN to Hebrew date using standard formula
+    // Based on Meeus algorithm for Hebrew calendar
+    int c = (jdn * 98496 + 8171949) ~/ 35670624;
+    int s = jdn - ((c * 35670624 - 8171949) ~/ 98496);
+    int a2 = ((s * 98496 + 18092) ~/ 655381);
+    int b = ((((s * 98496 + 18092) % 655381) * 19) + 18092) ~/ 655381;
     
-    int c = gYear ~/ 100;
-    int s = ((3 * c - 5) ~/ 4);
-    int a = ((12 * gYear + 12) ~/ 19);
-    int b = gYear % 19;
+    int hYear = c * 100 + a2 * 19 + b + 3744;
     
-    int jd = 367 * gYear - 
-             ((7 * (gYear + ((gMonth + 9) ~/ 12))) ~/ 4) +
-             ((275 * gMonth) ~/ 9) +
-             gDay + 1721028 - s;
+    // Adjust year if needed
+    int nisan1Jdn = ((hYear * 35670624 - 8171949) ~/ 98496) + 1;
+    if (jdn < nisan1Jdn) {
+      hYear = hYear - 1;
+      nisan1Jdn = ((hYear * 35670624 - 8171949) ~/ 98496) + 1;
+    }
     
-    // Convert Julian Day to Hebrew Date
-    int l = jd + 68569;
-    int n = ((4 * l) ~/ 146097);
-    l = l - ((146097 * n + 3) ~/ 4);
+    // Find month and day
+    int hMonth = 1;
+    int dayCount = 0;
     
-    int i = ((4000 * (l + 1)) ~/ 1461001);
-    l = l - ((1461 * i) ~/ 4) + 31;
+    // Start from Nisan (month 1)
+    for (int m = 1; m <= 13; m++) {
+      int daysInM = daysInMonth(hYear, m);
+      if (jdn <= nisan1Jdn + dayCount + daysInM - 1) {
+        hMonth = m;
+        break;
+      }
+      dayCount += daysInM;
+    }
     
-    int j = ((80 * l) ~/ 2447);
-    int hDay = l - ((2447 * j) ~/ 80);
-    int l2 = j ~/ 11;
-    int hMonth = j + 2 - (12 * l2);
-    int hYear = 100 * (n - 49) + i + l2;
+    int hDay = jdn - nisan1Jdn - dayCount + 1;
     
     return HebrewCalendar(hYear, hMonth, hDay);
   }

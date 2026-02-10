@@ -89,26 +89,44 @@ class WidgetFactory(
         }
         
         private fun gregorianToHebrew(year: Int, month: Int, day: Int): IntArray {
-            // Simplified Gregorian to Hebrew conversion
-            // Using astronomical calculations
-            val c = year / 100
-            val s = ((3 * c - 5) / 4).toInt()
-            val jd = 367 * year - ((7 * (year + ((month + 9) / 12).toInt())) / 4).toInt() + 
-                    ((275 * month) / 9).toInt() + day + 1721028 - s
+            // Calculate Julian Day Number from Gregorian date
+            var a = (14 - month) / 12
+            var y = year + 4800 - a
+            var m = month + 12 * a - 3
+            val jdn = day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045
             
-            var l = jd + 68569
-            val n = ((4 * l) / 146097).toInt()
-            l = l - ((146097 * n + 3) / 4).toInt()
+            // Convert JDN to Hebrew date
+            val c = (jdn * 98496 + 8171949) / 35670624
+            val s = jdn - ((c * 35670624 - 8171949) / 98496)
+            val a2 = ((s * 98496 + 18092) / 655381)
             
-            val i = ((4000 * (l + 1)) / 1461001).toInt()
-            l = l - ((1461 * i) / 4).toInt() + 31
-            val j = ((80 * l) / 2447).toInt()
-            val day_h = l - ((2447 * j) / 80).toInt()
-            val l2 = j / 11
-            val month_h = j + 2 - 12 * l2
-            val year_h = 100 * (n - 49) + i + l2
+            var hYear = c * 100 + a2 * 19 + 3744
+            val bDiv = ((s * 98496 + 18092) % 655381 * 19 + 18092) / 655381
+            hYear += bDiv
             
-            return intArrayOf(year_h, month_h, day_h)
+            // Adjust year if needed
+            var nisan1Jdn = ((hYear * 35670624 - 8171949) / 98496) + 1
+            if (jdn < nisan1Jdn) {
+                hYear = hYear - 1
+                nisan1Jdn = ((hYear * 35670624 - 8171949) / 98496) + 1
+            }
+            
+            // Find month and day
+            var hMonth = 1
+            var dayCount = 0
+            
+            for (m in 1..13) {
+                val daysInM = getDaysInHebrewMonth(hYear, m)
+                if (jdn <= nisan1Jdn + dayCount + daysInM - 1) {
+                    hMonth = m
+                    break
+                }
+                dayCount += daysInM
+            }
+            
+            val hDay = jdn - nisan1Jdn - dayCount + 1
+            
+            return intArrayOf(hYear, hMonth, hDay)
         }
         
         private fun getHebrewYearLength(year: Int): Int {
