@@ -45,27 +45,24 @@ class WidgetFactory(
             val hebrewDay = hebrewDate[2]
             
             // Calculate days from Tishrei 1 (Hebrew New Year, month 7)
-            val dayOfYear: Int
-            dayOfYear = if (hebrewMonth >= 7) {
+            return if (hebrewMonth >= 7) {
                 // From Tishrei 1 of current Hebrew year
                 var days = 0
-                for (m in 7..hebrewMonth - 1) {
+                for (m in 7 until hebrewMonth) {
                     days += getDaysInHebrewMonth(hebrewYear, m)
                 }
-                days += hebrewDay
+                days + hebrewDay
             } else {
                 // From Tishrei 1 of previous Hebrew year to current date
                 var days = 0
                 for (m in 7..13) {
                     days += getDaysInHebrewMonth(hebrewYear - 1, m)
                 }
-                for (m in 1..hebrewMonth - 1) {
+                for (m in 1 until hebrewMonth) {
                     days += getDaysInHebrewMonth(hebrewYear, m)
                 }
-                days += hebrewDay
+                days + hebrewDay
             }
-            
-            return dayOfYear
         }
         
         private fun isHebrewLeapYear(year: Int): Boolean {
